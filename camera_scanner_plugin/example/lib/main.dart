@@ -34,6 +34,10 @@ class _ScanWidgetState extends State<ScanWidget> {
     _sub = CameraScanner.onScan.listen((code) {
       setState(() { _last = code; });
     });
+    // Try init once
+    CameraScanner.init().catchError((e) {
+      setState(() { _last = 'init_error: \\$e'; });
+    });
   }
 
   @override
@@ -43,7 +47,15 @@ class _ScanWidgetState extends State<ScanWidget> {
   }
 
   Future<void> _start() async {
-    await CameraScanner.startScan();
+    try {
+      await CameraScanner.startScan(timeout: Duration(seconds: 15));
+    } catch (e) {
+      setState(() { _last = 'start_error: \\$e'; });
+    }
+  }
+
+  Future<void> _stop() async {
+    await CameraScanner.stopScan();
   }
 
   @override
@@ -51,7 +63,14 @@ class _ScanWidgetState extends State<ScanWidget> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ElevatedButton(onPressed: _start, child: const Text('Start Scan')),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton(onPressed: _start, child: const Text('Start Scan')),
+            const SizedBox(width: 8),
+            ElevatedButton(onPressed: _stop, child: const Text('Stop')),
+          ],
+        ),
         const SizedBox(height: 12),
         Text('Result: $_last'),
       ],
