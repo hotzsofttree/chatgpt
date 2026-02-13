@@ -1,0 +1,16 @@
+name: camera_scanner_plugin
+description: Example Flutter plugin that demonstrates Android productFlavors for different barcode SDKs.
+version: 0.0.1
+environment:
+  sdk: '>=2.18.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.example.camerascanner
+        pluginClass: CameraScannerPlugin

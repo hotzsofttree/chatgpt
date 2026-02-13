@@ -1,0 +1,45 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 33
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 33
+    }
+
+    flavorDimensions "vendor"
+    productFlavors {
+        sunmi { dimension "vendor" }
+        imin  { dimension "vendor" }
+        googlegsm { dimension "vendor" }
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/java'
+        sunmi.java.srcDirs += 'src/sunmi/java'
+        imin.java.srcDirs += 'src/imin/java'
+        googlegsm.java.srcDirs += 'src/googlegsm/java'
+    }
+
+    packagingOptions {
+        pickFirst '**/*.so'
+    }
+}
+
+repositories {
+    flatDir {
+        dirs 'src/sunmi/libs', 'src/imin/libs', 'src/googlegsm/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    // flavor-specific AARs (place AAR placeholders into src/<flavor>/libs/)
+    sunmiImplementation files('src/sunmi/libs/sunmi-sdk.aar')
+    iminImplementation  files('src/imin/libs/imin-sdk.aar')
+    googlegsmImplementation files('src/googlegsm/libs/googlegsm-sdk.aar')
+
+    // Flutter embedding (the real plugin will rely on pubspec metadata)
+    implementation 'androidx.annotation:annotation:1.6.0'
+}
