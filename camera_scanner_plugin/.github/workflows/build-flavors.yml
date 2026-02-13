@@ -20,38 +20,38 @@ jobs:
       - name: Flutter pub get (root)
         run: flutter pub get
 
-      - name: Build SUNMI APK
+      - name: Build SUNMI AAB
         working-directory: example
         run: |
           flutter pub get
-          flutter build apk --flavor sunmi -t lib/main.dart --split-per-abi
+          flutter build appbundle --flavor sunmi -t lib/main.dart
 
-      - name: Upload SUNMI APKs
+      - name: Upload SUNMI AAB
         uses: actions/upload-artifact@v4
         with:
-          name: sunmi-apks
-          path: example/build/app/outputs/flutter-apk/*.apk
+          name: sunmi-aab
+          path: example/build/app/outputs/bundle/release/*.aab
 
-      - name: Build IMIN APK
+      - name: Build IMIN AAB
         working-directory: example
         run: |
           flutter pub get
-          flutter build apk --flavor imin -t lib/main.dart --split-per-abi
+          flutter build appbundle --flavor imin -t lib/main.dart
 
-      - name: Upload IMIN APKs
+      - name: Upload IMIN AAB
         uses: actions/upload-artifact@v4
         with:
-          name: imin-apks
-          path: example/build/app/outputs/flutter-apk/*.apk
+          name: imin-aab
+          path: example/build/app/outputs/bundle/release/*.aab
 
-      - name: Build GoogleGSM APK
+      - name: Build GoogleGSM AAB
         working-directory: example
         run: |
           flutter pub get
-          flutter build apk --flavor googlegsm -t lib/main.dart --split-per-abi
+          flutter build appbundle --flavor googlegsm -t lib/main.dart
 
-      - name: Upload GoogleGSM APKs
+      - name: Upload GoogleGSM AAB
         uses: actions/upload-artifact@v4
         with:
-          name: googlegsm-apks
-          path: example/build/app/outputs/flutter-apk/*.apk
+          name: googlegsm-aab
+          path: example/build/app/outputs/bundle/release/*.aab
