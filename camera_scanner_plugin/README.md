@@ -23,3 +23,11 @@ flutter build apk --flavor googlegsm -t example/lib/main.dart
 ```
 
 注意：範例中 AAR 為 placeholder，實際使用時請把廠商 SDK 的 AAR 放到對應的 `android/src/<flavor>/libs/`。
+
+**CI 建置範例**
+
+下面是已加入的 GitHub Actions workflow，會在 push / PR 到 `main` 時為三個 flavor 建置 APK 並上傳 artifact：
+
+- Workflow: `.github/workflows/build-flavors.yml`
+
+在 repository 的 `Actions` 頁面可以下載每個 flavor 的 APK artifacts（或在 CI logs 驗證建置）。

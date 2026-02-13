@@ -1,0 +1,57 @@
+name: Build Android Flavors
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-flavors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Flutter pub get (root)
+        run: flutter pub get
+
+      - name: Build SUNMI APK
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build apk --flavor sunmi -t lib/main.dart --split-per-abi
+
+      - name: Upload SUNMI APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sunmi-apks
+          path: example/build/app/outputs/flutter-apk/*.apk
+
+      - name: Build IMIN APK
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build apk --flavor imin -t lib/main.dart --split-per-abi
+
+      - name: Upload IMIN APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: imin-apks
+          path: example/build/app/outputs/flutter-apk/*.apk
+
+      - name: Build GoogleGSM APK
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build apk --flavor googlegsm -t lib/main.dart --split-per-abi
+
+      - name: Upload GoogleGSM APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: googlegsm-apks
+          path: example/build/app/outputs/flutter-apk/*.apk
