@@ -1,14 +1,39 @@
-# Flutter 多平台 Barcode Scanner SDK 整合範本
+# Flutter 多平台 Camera Barcode Scanner（SUNMI / IMIN / GoogleGSM）整合藍圖
 
-> 目標：同一套 Flutter 程式碼，依不同 Android 平台（SUNMI / IMIN / GoogleGSM）輸出獨立 APK，避免單一 APK 過大。
+> 目標：同一套 Flutter 程式碼，依 Android 平台輸出獨立 APK，避免把所有廠牌 SDK 打進同一包。
 
-## 1) `pubspec.yaml` 依賴矩陣範本
+---
 
-以下用 **federated plugin** 架構（建議）：
+## 1. 架構設計（Clean Architecture + SOLID）
+
+## 1.1 套件切分（SRP / OCP / DIP）
+
+建議使用 **Federated Plugin**：
+
+```text
+packages/
+  barcode_scanner_platform_interface/   # 抽象介面（domain 依賴它）
+  barcode_scanner/                      # facade（對 app 暴露統一 API）
+  barcode_scanner_sunmi/                # SUNMI 實作
+  barcode_scanner_imin/                 # IMIN 實作
+  barcode_scanner_googlegsm/            # GoogleGSM 實作
+app/
+  lib/
+  android/
+```
+
+- `platform_interface`：只放抽象與資料模型（ISP/DIP）。
+- 各 vendor plugin：只做該廠牌 SDK 橋接（SRP）。
+- 新增廠牌只新增 package，不改既有 use case（OCP）。
+
+---
+
+## 2. `pubspec.yaml` 依賴矩陣範本（App）
+
+> 重點：App 層維持抽象依賴；實作由 DI + flavor 決定。
 
 ```yaml
 name: barcode_app
-description: Multi-vendor barcode scanner app
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -19,21 +44,25 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # State / DI / Storage / Network
+  # 狀態/DI/儲存
   get: ^4.6.6
   get_storage: ^2.1.1
   drift: ^2.20.0
   sqlite3_flutter_libs: ^0.5.24
 
-  # 只依賴抽象介面 + façade
-  barcode_scanner: ^1.0.0
-  barcode_scanner_platform_interface: ^1.0.0
+  # 掃碼抽象 + facade
+  barcode_scanner_platform_interface:
+    path: ../packages/barcode_scanner_platform_interface
+  barcode_scanner:
+    path: ../packages/barcode_scanner
 
-  # 若你走「同一 app 專案多 flavor」而非拆 3 個 app，可先全部列出
-  # 真正打包大小由 android flavor + implementation 控制
-  barcode_scanner_sunmi: ^1.0.0
-  barcode_scanner_imin: ^1.0.0
-  barcode_scanner_googlegsm: ^1.0.0
+  # 三個 vendor 實作（由 flavor 控制是否打包進 APK）
+  barcode_scanner_sunmi:
+    path: ../packages/barcode_scanner_sunmi
+  barcode_scanner_imin:
+    path: ../packages/barcode_scanner_imin
+  barcode_scanner_googlegsm:
+    path: ../packages/barcode_scanner_googlegsm
 
 dev_dependencies:
   flutter_test:
@@ -41,16 +70,9 @@ dev_dependencies:
   flutter_lints: ^3.0.2
 ```
 
-### 建議依賴策略（Clean Architecture + DIP）
-- `presentation` / `domain` 僅依賴 `barcode_scanner_platform_interface`。
-- `data` 層透過 DI 注入 `sunmi/imin/googlegsm` 實作。
-- 新增廠牌時只新增 plugin，不修改既有 use case（OCP）。
-
 ---
 
-## 2) `android/app/build.gradle` flavor 完整範本
-
-> 檔案：`android/app/build.gradle`（Groovy 版）
+## 3. `android/app/build.gradle` 完整 flavor 範本（Groovy）
 
 ```gradle
 plugins {
@@ -69,17 +91,6 @@ android {
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
-        multiDexEnabled true
-    }
-
-    signingConfigs {
-        release {
-            // TODO: 請改成你的簽章設定
-            // storeFile file("keystore/release.jks")
-            // storePassword "***"
-            // keyAlias "***"
-            // keyPassword "***"
-        }
     }
 
     buildTypes {
@@ -87,243 +98,110 @@ android {
             minifyEnabled false
         }
         release {
-            signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
-    flavorDimensions "device"
+    flavorDimensions "vendor"
     productFlavors {
         sunmi {
-            dimension "device"
+            dimension "vendor"
             applicationIdSuffix ".sunmi"
             versionNameSuffix "-sunmi"
-            manifestPlaceholders = [scannerVendor: "sunmi"]
-            resValue "string", "app_name", "Barcode App SUNMI"
+            manifestPlaceholders = [SCANNER_VENDOR: "sunmi"]
+            resValue "string", "app_name", "Barcode SUNMI"
         }
-
         imin {
-            dimension "device"
+            dimension "vendor"
             applicationIdSuffix ".imin"
             versionNameSuffix "-imin"
-            manifestPlaceholders = [scannerVendor: "imin"]
-            resValue "string", "app_name", "Barcode App IMIN"
+            manifestPlaceholders = [SCANNER_VENDOR: "imin"]
+            resValue "string", "app_name", "Barcode IMIN"
         }
-
         googlegsm {
-            dimension "device"
+            dimension "vendor"
             applicationIdSuffix ".googlegsm"
             versionNameSuffix "-googlegsm"
-            manifestPlaceholders = [scannerVendor: "googlegsm"]
-            resValue "string", "app_name", "Barcode App GoogleGSM"
+            manifestPlaceholders = [SCANNER_VENDOR: "googlegsm"]
+            resValue "string", "app_name", "Barcode GoogleGSM"
         }
     }
-
-    // 若各廠牌需要不同 JNI / AAR，可用 sourceSets 分流
-    sourceSets {
-        sunmi {
-            java.srcDirs += 'src/sunmi/kotlin'
-        }
-        imin {
-            java.srcDirs += 'src/imin/kotlin'
-        }
-        googlegsm {
-            java.srcDirs += 'src/googlegsm/kotlin'
-        }
-    }
-}
-
-flutter {
-    source '../..'
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
-
-    // 只在對應 flavor 載入對應 vendor SDK（核心：縮小 APK）
-    sunmiImplementation "com.vendor.sunmi:scanner-sdk:3.2.1"
-    iminImplementation "com.vendor.imin:scanner-sdk:2.8.0"
-    googlegsmImplementation "com.vendor.googlegsm:scanner-sdk:1.4.3"
+    // vendor SDK 請替換成真實座標/本地 aar
+    sunmiImplementation "com.vendor.sunmi:camera-barcode:1.0.0"
+    iminImplementation "com.vendor.imin:camera-barcode:1.0.0"
+    googlegsmImplementation "com.vendor.googlegsm:camera-barcode:1.0.0"
 }
 ```
 
-### `AndroidManifest.xml` 可搭配 placeholder
+### AndroidManifest placeholder（app/src/main/AndroidManifest.xml）
 
 ```xml
-<application
-    android:label="@string/app_name"
-    ...>
-
-    <meta-data
-        android:name="scanner.vendor"
-        android:value="${scannerVendor}" />
-</application>
+<meta-data
+    android:name="scanner.vendor"
+    android:value="${SCANNER_VENDOR}" />
 ```
 
 ---
 
-## 3) GetX Binding + Repository 注入範本
+## 4. GetX Binding + Repository 注入範本
 
-> 範例重點：
-> - `domain` 只依賴抽象（DIP）
-> - 依 flavor 注入不同 `Repository` 實作
-
-### `lib/src/domain/entities/barcode_result.dart`
+## 4.1 Domain 抽象
 
 ```dart
-class BarcodeResult {
-  final String rawValue;
-  final DateTime scannedAt;
-
-  const BarcodeResult({
-    required this.rawValue,
-    required this.scannedAt,
-  });
-}
-```
-
-### `lib/src/domain/repositories/barcode_scanner_repository.dart`
-
-```dart
-import '../entities/barcode_result.dart';
-
 abstract class BarcodeScannerRepository {
   Future<void> start();
   Future<void> stop();
-  Stream<BarcodeResult> onScanned();
+  Stream<String> onScan();
 }
 ```
 
-### `lib/src/domain/usecases/start_scan.dart`
+## 4.2 Data 實作
 
 ```dart
-import '../repositories/barcode_scanner_repository.dart';
-
-class StartScan {
-  final BarcodeScannerRepository repository;
-
-  StartScan(this.repository);
-
-  Future<void> call() => repository.start();
-}
-```
-
-### `lib/src/data/repositories/barcode_scanner_repository_impl.dart`
-
-```dart
-import 'package:barcode_scanner_platform_interface/barcode_scanner_platform_interface.dart'
-    as platform;
-import '../../domain/entities/barcode_result.dart';
-import '../../domain/repositories/barcode_scanner_repository.dart';
+import 'package:barcode_scanner_platform_interface/barcode_scanner_platform_interface.dart';
 
 class BarcodeScannerRepositoryImpl implements BarcodeScannerRepository {
-  final platform.BarcodeScannerPlatform scanner;
-
-  BarcodeScannerRepositoryImpl(this.scanner);
-
-  @override
-  Future<void> start() => scanner.start();
+  BarcodeScannerRepositoryImpl(this._platform);
+  final BarcodeScannerPlatform _platform;
 
   @override
-  Future<void> stop() => scanner.stop();
+  Future<void> start() => _platform.start();
 
   @override
-  Stream<BarcodeResult> onScanned() {
-    return scanner.onScanned().map(
-          (e) => BarcodeResult(rawValue: e.rawValue, scannedAt: e.scannedAt),
-        );
-  }
+  Future<void> stop() => _platform.stop();
+
+  @override
+  Stream<String> onScan() => _platform.onScan();
 }
 ```
 
-### `lib/src/presentation/scanner/scanner_controller.dart`
-
-```dart
-import 'dart:async';
-import 'package:get/get.dart';
-import '../../domain/entities/barcode_result.dart';
-import '../../domain/usecases/start_scan.dart';
-import '../../domain/usecases/stop_scan.dart';
-import '../../domain/repositories/barcode_scanner_repository.dart';
-
-class ScannerController extends GetxController {
-  final StartScan startScan;
-  final StopScan stopScan;
-  final BarcodeScannerRepository repository;
-
-  ScannerController({
-    required this.startScan,
-    required this.stopScan,
-    required this.repository,
-  });
-
-  final Rxn<BarcodeResult> latest = Rxn<BarcodeResult>();
-  StreamSubscription<BarcodeResult>? _sub;
-
-  @override
-  void onInit() {
-    super.onInit();
-    _sub = repository.onScanned().listen((event) {
-      latest.value = event;
-    });
-  }
-
-  Future<void> start() => startScan();
-
-  Future<void> stop() => stopScan();
-
-  @override
-  void onClose() {
-    _sub?.cancel();
-    super.onClose();
-  }
-}
-```
-
-### `lib/src/di/scanner_binding.dart`
+## 4.3 Binding（依 flavor 注入）
 
 ```dart
 import 'package:get/get.dart';
-import 'package:flutter/foundation.dart';
-
-import '../data/repositories/barcode_scanner_repository_impl.dart';
-import '../domain/repositories/barcode_scanner_repository.dart';
-import '../domain/usecases/start_scan.dart';
-import '../domain/usecases/stop_scan.dart';
-import '../presentation/scanner/scanner_controller.dart';
-
+import 'package:barcode_scanner_platform_interface/barcode_scanner_platform_interface.dart';
 import 'package:barcode_scanner_sunmi/barcode_scanner_sunmi.dart';
 import 'package:barcode_scanner_imin/barcode_scanner_imin.dart';
 import 'package:barcode_scanner_googlegsm/barcode_scanner_googlegsm.dart';
-import 'package:barcode_scanner_platform_interface/barcode_scanner_platform_interface.dart';
 
 class ScannerBinding extends Bindings {
   @override
   void dependencies() {
-    final BarcodeScannerPlatform scanner = _resolveByFlavor();
+    final platform = _resolvePlatform();
 
     Get.lazyPut<BarcodeScannerRepository>(
-      () => BarcodeScannerRepositoryImpl(scanner),
+      () => BarcodeScannerRepositoryImpl(platform),
       fenix: true,
-    );
-
-    Get.lazyPut(() => StartScan(Get.find<BarcodeScannerRepository>()));
-    Get.lazyPut(() => StopScan(Get.find<BarcodeScannerRepository>()));
-
-    Get.lazyPut(
-      () => ScannerController(
-        startScan: Get.find<StartScan>(),
-        stopScan: Get.find<StopScan>(),
-        repository: Get.find<BarcodeScannerRepository>(),
-      ),
     );
   }
 
-  BarcodeScannerPlatform _resolveByFlavor() {
+  BarcodeScannerPlatform _resolvePlatform() {
     const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'sunmi');
-
     switch (flavor) {
       case 'sunmi':
         return SunmiBarcodeScannerPlatform();
@@ -338,40 +216,25 @@ class ScannerBinding extends Bindings {
 }
 ```
 
-### `lib/main_sunmi.dart` / `main_imin.dart` / `main_googlegsm.dart`
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'src/di/scanner_binding.dart';
-
-void main() {
-  runApp(
-    GetMaterialApp(
-      initialBinding: ScannerBinding(),
-      home: const Scaffold(body: Center(child: Text('Scanner App'))),
-    ),
-  );
-}
-```
-
-> 編譯時傳 flavor 常數：
-> `--dart-define=FLAVOR=sunmi` / `imin` / `googlegsm`
-
 ---
 
-## 4) Windows 發佈指令（可直接用）
+## 5. Windows 發佈指令（PowerShell）
 
 ```powershell
 flutter clean
 flutter pub get
 
+# SUNMI
 flutter build apk --flavor sunmi -t lib/main_sunmi.dart --dart-define=FLAVOR=sunmi --release
+
+# IMIN
 flutter build apk --flavor imin -t lib/main_imin.dart --dart-define=FLAVOR=imin --release
+
+# GoogleGSM
 flutter build apk --flavor googlegsm -t lib/main_googlegsm.dart --dart-define=FLAVOR=googlegsm --release
 ```
 
-若要 AAB：
+AAB：
 
 ```powershell
 flutter build appbundle --flavor sunmi -t lib/main_sunmi.dart --dart-define=FLAVOR=sunmi --release
@@ -379,8 +242,24 @@ flutter build appbundle --flavor sunmi -t lib/main_sunmi.dart --dart-define=FLAV
 
 ---
 
-## 5) Android Studio / VS Code 實務建議
-- Android Studio：建立 3 組 Run Configuration（sunmi/imin/googlegsm），分別設定 `--flavor` 與 `--dart-define`。
-- VS Code：在 `.vscode/launch.json` 建立 3 組 Flutter 啟動參數，避免手動輸入。
-- GetStorage / drift：保持在 app 層，不要放進 vendor plugin，維持 plugin 單一職責（SRP）。
+## 6. IDE 建議（你目前技術棧）
+
+- **Android Studio（Flutter + GetX + GetConnect + GetStorage + sqlite3 + drift）**
+  - 建立 3 組 Run Configuration，分別帶 `--flavor` 與 `--dart-define`。
+  - `drift`、`GetStorage` 保持在 app/data 層，不要放 vendor plugin。
+
+- **VS Code**
+  - 在 `.vscode/launch.json` 建立 sunmi/imin/googlegsm 三組啟動設定。
+
+- **Delphi XE3 / C# 7.3**
+  - 本方案主體為 Flutter/Android；若你要做後台工具串接，Delphi XE3 JSON 請用 `DBXJSON`，C# 維持 7.3 語法即可。
+
+---
+
+## 7. 實務檢查清單
+
+- 每個 flavor 的 APK 大小是否明顯下降。
+- 啟動時是否注入正確平台實作。
+- 各廠牌掃碼流程（初始化、掃描、釋放）是否一致。
+- 若新增新廠牌，只新增 plugin + flavor，不改 domain/usecase。
 
