@@ -1,0 +1,24 @@
+android {
+    flavorDimensions "vendor"
+    productFlavors {
+        sunmi {
+            dimension "vendor"
+            applicationIdSuffix ".sunmi"
+        }
+        imin {
+            dimension "vendor"
+            applicationIdSuffix ".imin"
+        }
+        googlegsm {
+            dimension "vendor"
+            applicationIdSuffix ".googlegsm"
+        }
+    }
+}
+
+dependencies {
+    // 請換成各廠商真實 SDK 座標
+    sunmiImplementation "com.vendor.sunmi:camera-barcode:1.0.0"
+    iminImplementation "com.vendor.imin:camera-barcode:1.0.0"
+    googlegsmImplementation "com.vendor.googlegsm:camera-barcode:1.0.0"
+}

@@ -1,0 +1,28 @@
+name: barcode_app
+description: Minimal runnable multi-vendor barcode app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get: ^4.6.6
+  barcode_scanner_platform_interface:
+    path: packages/barcode_scanner_platform_interface
+  barcode_scanner_sunmi:
+    path: packages/barcode_scanner_sunmi
+  barcode_scanner_imin:
+    path: packages/barcode_scanner_imin
+  barcode_scanner_googlegsm:
+    path: packages/barcode_scanner_googlegsm
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.2
+
+flutter:
+  uses-material-design: true
