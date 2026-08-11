@@ -1,0 +1,9 @@
+name: barcode_scanner_imin
+description: IMIN scanner implementation
+version: 0.0.1
+publish_to: 'none'
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+dependencies:
+  barcode_scanner_platform_interface:
+    path: ../barcode_scanner_platform_interface
